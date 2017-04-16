@@ -3,46 +3,86 @@
 import Queue
 import threading
 import argparse
-import socket
+import socket, struct
+import errno
 
 call_queue = Queue.Queue()
 
-def receive_call(host, port):
+def DoesServiceExist(host, port):
+    captive_dns_addr = ""
+    host_addr = ""
+
+    try:
+        captive_dns_addr = socket.gethostbyname("BlahThisDomaynDontExist22.com")
+    except:
+        pass
+
+    try:
+        host_addr = socket.gethostbyname(host)
+
+        if (captive_dns_addr == host_addr):
+            return False
+
+        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        s.settimeout(1)
+        s.connect((host, port))
+        s.close()
+    except:
+        return False
+
+    return True
+
+def call(host, port, localCounter):
    s = socket.socket()
-   s.connect((host, port))
+   print "Call: " + host + ", " + str(port) + ", " + str(localCounter)
+   while not DoesServiceExist(host, port):
+      pass
+   s.connect(host, port)
+
    print s.recv(1024)
-   inpt = raw_input('type anything and click enter... ')
-   s.send(inpt)
-   print "the message has been sent"
-   return 1
+   s.send(str(localCounter))
+   print "stat: " + str(stat)
+   s.close()
    
 
 def start_events(events):
    log = [];
    localCounter = 0;
+   received = False;
    for e in events:
       localCounter += 1;
       event_parts = e.split()
+
       if event_parts[0]=="call":
-         remoteCounter = receive_call(event_parts[1], event_parts[2])
-         localCounter = max(localCounter, remoteCounter)
+         call(event_parts[1], int(event_parts[2]), localCounter)
+         print "call"
+
+      elif event_parts[0]=="receive":
+         while call_queue.empty():
+            #do nothing
+            pass
+         remoteCounter = int(call_queue.get())
+         print "recahed here"
+         if remoteCounter>=0:
+            remoteCounter += 1
+            localCounter = max(localCounter, remoteCounter)
+            received = True
+            print "received"
+            #print "not recived"
+
       log.append([e, localCounter])
    print log
 
 def start_listening(port):
    s = socket.socket()
    host = socket.gethostname()
-   port = 1247
+   print "REeceive: " + host + ", " + str(port)
    s.bind((host,port))
    s.listen(5)
    while True:
       c, addr = s.accept()
-      print("Connection accepted from " + repr(addr[1]))
-      c.send("Server approved connection\n")
-      print repr(addr[1]) + ": " + c.recv(1026)
+      call_queue.put(c.recv(1026))
       c.close()
-
-   #q.put(urllib2.urlopen(url).read())
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -54,7 +94,6 @@ if __name__ == '__main__':
     
     with open(inputfile) as f:
       inputRaw = f.readlines()
-    # you may also want to remove whitespace characters like `\n` at the end of each line
     events = [x.strip() for x in inputRaw]
 
 
@@ -67,5 +106,8 @@ if __name__ == '__main__':
     listening_thread = threading.Thread(target=start_listening, args = (port,))
     listening_thread.daemon = True
     listening_thread.start()
+
+    events_thread.join()
+    listening_thread.join()
 
     print port
