@@ -5,6 +5,7 @@ import threading
 import argparse
 import socket, struct
 import errno
+import time
 
 call_queue = Queue.Queue()
 
@@ -34,14 +35,14 @@ def DoesServiceExist(host, port):
 
 def call(host, port, localCounter):
    s = socket.socket()
-   print "Call: " + host + ", " + str(port) + ", " + str(localCounter)
-   while not DoesServiceExist(host, port):
-      pass
-   s.connect(host, port)
+   #print "Calling: " + host + ", " + str(port) + ", " + str(localCounter)
+   #while not DoesServiceExist(host, port):
+   #   pass
+   time.sleep(5)
+   s.connect((host, port))
 
-   print s.recv(1024)
+   #print s.recv(1024)
    s.send(str(localCounter))
-   print "stat: " + str(stat)
    s.close()
    
 
@@ -55,29 +56,28 @@ def start_events(events):
 
       if event_parts[0]=="call":
          call(event_parts[1], int(event_parts[2]), localCounter)
-         print "call"
 
       elif event_parts[0]=="receive":
          while call_queue.empty():
             #do nothing
             pass
          remoteCounter = int(call_queue.get())
-         print "recahed here"
          if remoteCounter>=0:
             remoteCounter += 1
             localCounter = max(localCounter, remoteCounter)
             received = True
-            print "received"
+            #print "received"
             #print "not recived"
 
-      log.append([e, localCounter])
-   print log
+      #log.append([e, localCounter])
+      log.append(localCounter)
+   print(*log)
 
 def start_listening(port):
    s = socket.socket()
    host = socket.gethostname()
-   print "REeceive: " + host + ", " + str(port)
-   s.bind((host,port))
+   #print "REeceive: " + host + ", " + str(port)
+   s.bind(('',port))
    s.listen(5)
    while True:
       c, addr = s.accept()
