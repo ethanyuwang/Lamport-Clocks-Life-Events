@@ -6,8 +6,10 @@ import argparse
 import socket, struct
 import errno
 import time
+import sys
 
 call_queue = Queue.Queue()
+listening_queue = Queue.Queue()
 
 def DoesServiceExist(host, port):
     captive_dns_addr = ""
@@ -71,9 +73,18 @@ def start_events(events):
 
       #log.append([e, localCounter])
       log.append(localCounter)
-   print(*log)
 
-def start_listening(port):
+   output = ""
+   listening_queue.put("theEnd")
+   for l in log:
+   	output = output + str(l) + " "
+   print output[:-1]
+   #sys.exit()
+   
+   #if not listening_queue.empty(): print "yo no empty"
+   return
+
+def start_listening(port, stop):
    s = socket.socket()
    host = socket.gethostname()
    #print "REeceive: " + host + ", " + str(port)
@@ -83,6 +94,11 @@ def start_listening(port):
       c, addr = s.accept()
       call_queue.put(c.recv(1026))
       c.close()
+      if stop():
+      #if not listening_queue.empty():
+      	c.close()
+      	break
+   return
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -96,18 +112,22 @@ if __name__ == '__main__':
       inputRaw = f.readlines()
     events = [x.strip() for x in inputRaw]
 
-
     #start events thread
     events_thread = threading.Thread(target=start_events, args = (events,))
-    events_thread.daemon = True
+    #events_thread.daemon = True
     events_thread.start()
 
     #start listening thread
-    listening_thread = threading.Thread(target=start_listening, args = (port,))
-    listening_thread.daemon = True
+    stop_threads = False
+    listening_thread = threading.Thread(target=start_listening, args = (port, lambda: stop_threads))
+    #listening_thread.daemon = True
     listening_thread.start()
 
     events_thread.join()
+    exit()
+    stop_threads = True
     listening_thread.join()
+    
+    #listening_thread.do_run = False
+    
 
-    print port

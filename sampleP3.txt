@@ -1,4 +1,0 @@
-wakeup
-shower
-eat
-receive call
